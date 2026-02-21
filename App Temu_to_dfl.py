@@ -15,7 +15,6 @@ except ImportError:
 # -----------------------------
 # Funzioni di supporto
 # -----------------------------
-
 def calcola_peso_volumetrico(volume_m3, coeff=5000):
     if pd.isna(volume_m3):
         return 0
@@ -44,7 +43,6 @@ def arrotondamento_psicologico(prezzo):
 # -----------------------------
 # Streamlit UI
 # -----------------------------
-
 st.title("Generatore Listino Temu")
 
 uploaded_file = st.file_uploader("Carica il file fornitore (CSV o Excel)", type=['csv','xlsx'])
@@ -93,13 +91,13 @@ if uploaded_file:
     df['PrezzoBase'] = df['PrezzoNettoEff'] + df['IVA'] + df['Spedizione']
     
     # -----------------------------
-    # Applicazione markup
+    # Applicazione markup (UNA SOLA VOLTA)
     # -----------------------------
     df['PrezzoFinale'] = df['PrezzoBase'] * (1 + markup / 100)
     df['PrezzoFinale'] = df['PrezzoFinale'].apply(arrotondamento_psicologico)
     
     # -----------------------------
-    # Prezzo Temu
+    # Prezzo Temu (nessun markup aggiuntivo)
     # -----------------------------
     df['PrezzoTemu'] = (df['PrezzoFinale'] / 1.22) * 0.85
     
