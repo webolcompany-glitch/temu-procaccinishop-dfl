@@ -1,20 +1,28 @@
 import streamlit as st
 import pandas as pd
 import math
+from io import BytesIO
+import sys
+import subprocess
+
+# Assicurati che openpyxl sia installato
+try:
+    import openpyxl
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "openpyxl"])
+    import openpyxl
 
 # -----------------------------
 # Funzioni di supporto
 # -----------------------------
 
 def calcola_peso_volumetrico(volume_m3, coeff=5000):
-    """Calcola il peso volumetrico in kg"""
     if pd.isna(volume_m3):
         return 0
     volume_cm3 = volume_m3 * 1_000_000
     return volume_cm3 / coeff
 
 def calcola_spedizione(peso):
-    """Calcola il costo spedizione in base al peso"""
     if peso <= 2:
         return 5.71
     elif peso <= 3:
@@ -31,7 +39,6 @@ def calcola_spedizione(peso):
         return None
 
 def arrotondamento_psicologico(prezzo):
-    """Arrotondamento psicologico (ceil - 0.01)"""
     return math.ceil(prezzo) - 0.01
 
 # -----------------------------
@@ -49,7 +56,7 @@ if uploaded_file:
         if uploaded_file.name.endswith('.csv'):
             df = pd.read_csv(uploaded_file)
         else:
-            df = pd.read_excel(uploaded_file)
+            df = pd.read_excel(uploaded_file, engine='openpyxl')
     except Exception as e:
         st.error(f"Errore lettura file: {e}")
     
@@ -58,10 +65,8 @@ if uploaded_file:
     # -----------------------------
     df = df.dropna(subset=['PrezzoNetto', 'PesoPezzoKg'])
     df = df[df['PrezzoNetto'] > 0]
-    
-    # Gestione disponibilità
     df = df[df['Disponibilita'].isin(['Disponibile'])]
-    
+
     # -----------------------------
     # Calcolo Peso Totale e volumetrico con MV
     # -----------------------------
@@ -70,7 +75,7 @@ if uploaded_file:
     df['VolumeTot'] = df['VolumeMt3'].fillna(0) * df['MV']
     
     df['PesoVolumetrico'] = df['VolumeTot'].apply(calcola_peso_volumetrico)
-    df['PesoSpedizione'] = df[['PesoTot', 'PesoVolumetrico']].max(axis=1)
+    df['PesoSpedizione'] = df[['PesoTot','PesoVolumetrico']].max(axis=1)
     
     # Esclusione prodotti troppo pesanti
     df = df[df['PesoSpedizione'] <= 49]
@@ -128,9 +133,18 @@ if uploaded_file:
     df_out['Altezza - cm'] = 30
     
     # -----------------------------
-    # Download CSV
+    # Download Excel
     # -----------------------------
-    csv = df_out.to_csv(index=False)
-    st.download_button(label="Scarica listino Temu", data=csv, file_name='listino_temu.csv', mime='text/csv')
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_out.to_excel(writer, index=False, sheet_name='ListinoTemu')
+    output.seek(0)
+    
+    st.download_button(
+        label="Scarica listino Temu (Excel)",
+        data=output,
+        file_name='listino_temu.xlsx',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
     
     st.success("Listino generato con successo! ✅")
